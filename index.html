@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Whisper — Anonymous Greetings</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.1);
+    --rose: #ff4d6d;
+    --rose-light: #ff758f;
+    --gold: #f7c59f;
+    --lavender: #c9b8ff;
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --glow: 0 0 60px rgba(255,77,109,0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── ANIMATED BG ── */
+  .bg-orbs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.18;
+    animation: drift linear infinite;
+  }
+  .orb-1 { width: 600px; height: 600px; background: #ff4d6d; top: -200px; left: -100px; animation-duration: 20s; }
+  .orb-2 { width: 500px; height: 500px; background: #c9b8ff; bottom: -150px; right: -100px; animation-duration: 27s; animation-direction: reverse; }
+  .orb-3 { width: 350px; height: 350px; background: #f7c59f; top: 40%; left: 60%; animation-duration: 16s; }
+
+  @keyframes drift {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.05); }
+    66% { transform: translate(-20px, 30px) scale(0.95); }
+  }
+
+  /* noise grain */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.04; pointer-events: none; z-index: 1;
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 60px 20px 100px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center; margin-bottom: 56px;
+    animation: fadeUp 0.8s ease both;
+  }
+  .header .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--rose); margin-bottom: 14px; opacity: 0.9;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(40px, 6vw, 68px);
+    font-weight: 700; line-height: 1.1;
+    background: linear-gradient(135deg, var(--text) 30%, var(--rose-light) 70%, var(--lavender));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .header p {
+    margin-top: 16px; color: var(--muted); font-size: 15px; font-weight: 300; max-width: 340px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── CARD ── */
+  .card {
+    width: 100%; max-width: 520px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    padding: 40px;
+    backdrop-filter: blur(30px);
+    box-shadow: var(--glow), 0 40px 80px rgba(0,0,0,0.5);
+    animation: fadeUp 0.8s 0.15s ease both;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px;
+  }
+
+  /* ── WHO PILLS ── */
+  .pill-group {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px;
+  }
+  .pill {
+    padding: 9px 18px; border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .pill::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--rose), var(--lavender));
+    opacity: 0; transition: opacity 0.25s;
+  }
+  .pill span { position: relative; z-index: 1; }
+  .pill:hover { border-color: rgba(255,77,109,0.4); color: var(--text); }
+  .pill.active { border-color: transparent; color: white; }
+  .pill.active::before { opacity: 1; }
+
+  /* ── VIBE PILLS ── */
+  .vibe-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+  .vibe {
+    padding: 7px 14px; border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-size: 12px; cursor: pointer; transition: all 0.25s;
+  }
+  .vibe.active { border-color: var(--gold); color: var(--gold); background: rgba(247,197,159,0.08); }
+
+  /* ── TEXTAREA ── */
+  .msg-wrap { position: relative; margin-bottom: 24px; }
+  textarea {
+    width: 100%; height: 140px; padding: 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 18px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300;
+    resize: none; outline: none; transition: border-color 0.3s, box-shadow 0.3s;
+    line-height: 1.6;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus { border-color: rgba(255,77,109,0.5); box-shadow: 0 0 0 4px rgba(255,77,109,0.08); }
+  .char-count { position: absolute; bottom: 12px; right: 16px; font-size: 11px; color: var(--muted); }
+  .char-count.warn { color: var(--rose); }
+
+  /* ── TONE SLIDER ── */
+  .tone-wrap { margin-bottom: 28px; }
+  .tone-track {
+    position: relative; height: 6px; border-radius: 100px;
+    background: linear-gradient(90deg, #a8e6cf, var(--gold), var(--rose));
+    cursor: pointer; margin-bottom: 10px;
+  }
+  .tone-thumb {
+    position: absolute; top: 50%; width: 22px; height: 22px;
+    background: white; border-radius: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4); cursor: grab;
+    transition: left 0.1s;
+  }
+  .tone-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+  /* ── DELIVER TOGGLE ── */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 28px; padding: 16px 18px;
+    background: rgba(255,255,255,0.03); border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  .toggle-label { font-size: 13px; color: var(--muted); }
+  .toggle-label strong { color: var(--text); display: block; font-size: 14px; margin-bottom: 2px; }
+  .switch { position: relative; width: 44px; height: 24px; cursor: pointer; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-sw {
+    position: absolute; inset: 0; background: rgba(255,255,255,0.1);
+    border-radius: 100px; transition: 0.3s;
+  }
+  .slider-sw::before {
+    content: ''; position: absolute; width: 18px; height: 18px;
+    left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.3s;
+  }
+  input:checked + .slider-sw { background: var(--rose); }
+  input:checked + .slider-sw::before { transform: translateX(20px); }
+
+  /* ── AI ASSIST BUTTON ── */
+  .ai-row { margin-bottom: 20px; }
+  .btn-ai {
+    width: 100%; padding: 12px; border-radius: 14px;
+    border: 1px dashed rgba(201,184,255,0.3);
+    background: rgba(201,184,255,0.05);
+    color: var(--lavender); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-ai:hover { background: rgba(201,184,255,0.1); border-color: rgba(201,184,255,0.5); }
+  .btn-ai svg { width: 15px; height: 15px; }
+
+  /* ── SEND BUTTON ── */
+  .btn-send {
+    width: 100%; padding: 16px; border-radius: 18px; border: none;
+    background: linear-gradient(135deg, var(--rose), var(--rose-light));
+    color: white; font-family: 'DM Sans', sans-serif;
+    font-size: 16px; font-weight: 500; cursor: pointer;
+    transition: all 0.3s; position: relative; overflow: hidden;
+    letter-spacing: 0.01em;
+    box-shadow: 0 8px 32px rgba(255,77,109,0.3);
+  }
+  .btn-send::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, white, transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .btn-send:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255,77,109,0.45); }
+  .btn-send:hover::after { opacity: 0.1; }
+  .btn-send:active { transform: translateY(0); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px; background: var(--border); margin: 28px 0;
+    position: relative;
+  }
+  .divider::before {
+    content: '✦'; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    background: var(--bg); padding: 0 12px;
+    font-size: 10px; color: var(--muted);
+  }
+
+  /* ── AI SPINNER ── */
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(201,184,255,0.3); border-top-color: var(--lavender);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── SUCCESS STATE ── */
+  .success-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(10,10,15,0.95); backdrop-filter: blur(20px);
+    opacity: 0; pointer-events: none; transition: opacity 0.5s;
+  }
+  .success-overlay.show { opacity: 1; pointer-events: all; }
+  .success-icon {
+    font-size: 80px; margin-bottom: 24px;
+    animation: pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  .success-title {
+    font-family: 'Playfair Display', serif; font-size: 36px;
+    background: linear-gradient(135deg, var(--text), var(--rose-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .success-sub { color: var(--muted); font-size: 15px; margin-bottom: 36px; }
+  .btn-again {
+    padding: 13px 36px; border-radius: 100px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; cursor: pointer; transition: all 0.3s;
+  }
+  .btn-again:hover { background: var(--surface-hover); }
+
+  /* ── PARTICLES ── */
+  .particle {
+    position: fixed; pointer-events: none; z-index: 200;
+    font-size: 24px; animation: floatUp 2s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translate(0,0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.5) rotate(var(--r)); }
+  }
+
+  /* ── INBOX SECTION ── */
+  .inbox-toggle {
+    margin-top: 32px; text-align: center;
+    animation: fadeUp 0.8s 0.3s ease both;
+  }
+  .btn-inbox {
+    padding: 11px 28px; border-radius: 100px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.3s;
+  }
+  .btn-inbox:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+  .inbox {
+    width: 100%; max-width: 520px; margin-top: 20px;
+    display: none; animation: fadeUp 0.4s ease both;
+  }
+  .inbox.open { display: block; }
+  .inbox-header {
+    font-family: 'Playfair Display', serif; font-size: 22px;
+    margin-bottom: 16px; color: var(--text);
+  }
+  .msg-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 20px; margin-bottom: 12px;
+    position: relative; overflow: hidden;
+  }
+  .msg-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .msg-card.warm::before { background: var(--rose); }
+  .msg-card.cool::before { background: var(--lavender); }
+  .msg-card.neutral::before { background: var(--gold); }
+  .msg-from { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .msg-text { font-size: 14px; line-height: 1.7; color: var(--text); }
+  .msg-vibe { display: inline-block; margin-top: 10px; font-size: 11px; padding: 3px 10px; border-radius: 100px; background: rgba(255,255,255,0.06); color: var(--muted); }
+  .msg-time { position: absolute; right: 16px; top: 16px; font-size: 10px; color: var(--muted); }
+
+  .empty-inbox { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  /* Mobile */
+  @media (max-width: 560px) {
+    .card { padding: 28px 22px; }
+    .header h1 { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="wrapper">
+  <div class="header">
+    <div class="eyebrow">Express without fear</div>
+    <h1>Whisper</h1>
+    <p>Send a heartfelt message, anonymously. No names. No judgement. Just feeling.</p>
+  </div>
+
+  <div class="card">
+
+    <!-- WHO -->
+    <div class="section-label">You are a…</div>
+    <div class="pill-group" id="whoGroup">
+      <button class="pill" onclick="selectPill(this,'who')"><span>💛 Friend</span></button>
+      <button class="pill" onclick="selectPill(this,'who')"><span>📚 Classmate</span></button>
+      <button class="pill" onclick="selectPill(this,'who')"><span>🌍 Stranger</span></button>
+      <button class="pill" onclick="selectPill(this,'who')"><span>🏡 Relative</span></button>
+      <button class="pill" onclick="selectPill(this,'who')"><span>💼 Colleague</span></button>
+      <button class="pill" onclick="selectPill(this,'who')"><span>✨ Secret Admirer</span></button>
+    </div>
+
+    <!-- VIBE -->
+    <div class="section-label">Message vibe</div>
+    <div class="vibe-group" id="vibeGroup">
+      <button class="vibe" onclick="selectPill(this,'vibe')">💌 Heartfelt</button>
+      <button class="vibe" onclick="selectPill(this,'vibe')">😄 Cheerful</button>
+      <button class="vibe" onclick="selectPill(this,'vibe')">🙏 Grateful</button>
+      <button class="vibe" onclick="selectPill(this,'vibe')">🔥 Hype</button>
+      <button class="vibe" onclick="selectPill(this,'vibe')">🌙 Deep</button>
+      <button class="vibe" onclick="selectPill(this,'vibe')">🤗 Comforting</button>
+    </div>
+
+    <!-- TONE -->
+    <div class="section-label">Tone</div>
+    <div class="tone-wrap">
+      <div class="tone-track" id="toneTrack">
+        <div class="tone-thumb" id="toneThumb" style="left:50%"></div>
+      </div>
+      <div class="tone-labels">
+        <span>🌿 Gentle</span>
+        <span>⚡ Intense</span>
+      </div>
+    </div>
+
+    <!-- AI ASSIST -->
+    <div class="ai-row">
+      <button class="btn-ai" id="aiBtn" onclick="aiAssist()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        ✨ AI — Write it for me
+      </button>
+    </div>
+
+    <!-- MESSAGE -->
+    <div class="msg-wrap">
+      <textarea id="msgArea" placeholder="Pour your heart out… ❤️" maxlength="400" oninput="countChars()"></textarea>
+      <div class="char-count" id="charCount">0 / 400</div>
+    </div>
+
+    <!-- ANONYMOUS TOGGLE -->
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <strong>Stay Anonymous</strong>
+        Your identity is never revealed
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="anonToggle" checked>
+        <span class="slider-sw"></span>
+      </label>
+    </div>
+
+    <!-- SEND -->
+    <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+      Send Whisper ❤️
+    </button>
+
+  </div>
+
+  <!-- INBOX -->
+  <div class="inbox-toggle">
+    <button class="btn-inbox" onclick="toggleInbox()">💌 View Inbox</button>
+  </div>
+  <div class="inbox" id="inbox">
+    <div class="inbox-header">Messages for you</div>
+    <div id="inboxList"></div>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">💌</div>
+  <div class="success-title">Whisper Sent</div>
+  <div class="success-sub">Your words are on their way… anonymously.</div>
+  <button class="btn-again" onclick="resetForm()">Send Another</button>
+</div>
+
+<script>
+/* ── STATE ── */
+let who = '', vibe = '', toneVal = 50;
+let messages = JSON.parse(localStorage.getItem('whispers') || '[]');
+let isDragging = false;
+
+/* ── PILLS ── */
+function selectPill(el, group) {
+  const parent = group === 'who' ? document.getElementById('whoGroup') : document.getElementById('vibeGroup');
+  parent.querySelectorAll(group === 'who' ? '.pill' : '.vibe').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  if (group === 'who') who = el.textContent.trim();
+  else vibe = el.textContent.trim();
+}
+
+/* ── CHAR COUNT ── */
+function countChars() {
+  const v = document.getElementById('msgArea').value.length;
+  const el = document.getElementById('charCount');
+  el.textContent = `${v} / 400`;
+  el.className = 'char-count' + (v > 360 ? ' warn' : '');
+}
+
+/* ── TONE DRAG ── */
+const track = document.getElementById('toneTrack');
+const thumb = document.getElementById('toneThumb');
+function calcTone(e) {
+  const rect = track.getBoundingClientRect();
+  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+  toneVal = Math.min(100, Math.max(0, (x / rect.width) * 100));
+  thumb.style.left = toneVal + '%';
+}
+track.addEventListener('mousedown', e => { isDragging = true; calcTone(e); });
+track.addEventListener('touchstart', e => { isDragging = true; calcTone(e); }, {passive:true});
+document.addEventListener('mousemove', e => { if(isDragging) calcTone(e); });
+document.addEventListener('touchmove', e => { if(isDragging) calcTone(e); }, {passive:true});
+document.addEventListener('mouseup', () => isDragging = false);
+document.addEventListener('touchend', () => isDragging = false);
+
+/* ── AI ASSIST ── */
+async function aiAssist() {
+  
+  if (!who) {
+    shake('whoGroup');
+    return;
+  }
+
+  const btn = document.getElementById('aiBtn');
+  btn.innerHTML = "⏳ Writing...";
+  btn.disabled = true;
+
+  const toneWord = toneVal < 33 ? 'gentle and soft' :
+                   toneVal < 66 ? 'warm and sincere' :
+                   'passionate and intense';
+
+  const vibeWord = vibe || 'heartfelt';
+
+  const prompt = `Write a short anonymous message from a ${who}. 
+  Vibe: ${vibeWord}. Tone: ${toneWord}. Make it emotional and real.`;
+
+  try {
+    const res = await fetch("http://127.0.0.1:3000/ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || "No response";
+
+    document.getElementById("msgArea").value = text;
+
+  } catch (e) {
+    document.getElementById("msgArea").placeholder =
+      "AI failed... try again ❤️";
+  }
+
+  btn.innerHTML = "✨ AI — Write it for me";
+  btn.disabled = false;
+
+}
+
+/* ── SEND ── */
+function sendMessage() {
+  const msg = document.getElementById('msgArea').value.trim();
+  if (!who) { shake('whoGroup'); return; }
+  if (!msg)  { shakeel('msgArea'); return; }
+
+  // Save
+  messages.unshift({
+    who, vibe: vibe || '✨',
+    msg, tone: toneVal,
+    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+    anon: document.getElementById('anonToggle').checked
+  });
+  localStorage.setItem('whispers', JSON.stringify(messages.slice(0,50)));
+
+  // Particles
+  burst();
+
+  // Show success
+  document.getElementById('successOverlay').classList.add('show');
+}
+
+/* ── BURST ── */
+function burst() {
+  const icons = ['❤️','💛','💜','💖','✨','🌸','💫','🌟'];
+  for (let i = 0; i < 40; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.textContent = icons[Math.floor(Math.random()*icons.length)];
+      const x = Math.random()*window.innerWidth;
+      const y = Math.random()*window.innerHeight*0.8 + window.innerHeight*0.1;
+      p.style.left = x+'px';
+      p.style.top = y+'px';
+      const dx = (Math.random()-0.5)*400+'px';
+      const dy = -(100+Math.random()*300)+'px';
+      const r = (Math.random()-0.5)*360+'deg';
+      p.style.setProperty('--dx', dx);
+      p.style.setProperty('--dy', dy);
+      p.style.setProperty('--r', r);
+      p.style.fontSize = (16+Math.random()*20)+'px';
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(), 2000);
+    }, i*30);
+  }
+}
+
+/* ── RESET ── */
+function resetForm() {
+  document.getElementById('successOverlay').classList.remove('show');
+  document.getElementById('msgArea').value = '';
+  document.getElementById('charCount').textContent = '0 / 400';
+  document.querySelectorAll('.pill, .vibe').forEach(p=>p.classList.remove('active'));
+  who=''; vibe=''; toneVal=50;
+  document.getElementById('toneThumb').style.left='50%';
+  renderInbox();
+}
+
+/* ── INBOX ── */
+function toggleInbox() {
+  const box = document.getElementById('inbox');
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) renderInbox();
+}
+
+function renderInbox() {
+  const list = document.getElementById('inboxList');
+  if (!messages.length) {
+    list.innerHTML = '<div class="empty-inbox">No whispers yet. Be the first! 💌</div>';
+    return;
+  }
+  list.innerHTML = messages.map(m => {
+    const cls = m.tone < 33 ? 'cool' : m.tone > 66 ? 'warm' : 'neutral';
+    return `<div class="msg-card ${cls}">
+      <div class="msg-from">${m.anon ? 'Anonymous' : m.who} · ${m.time}</div>
+      <div class="msg-text">${escHTML(m.msg)}</div>
+      <span class="msg-vibe">${m.vibe || '✨ Heartfelt'}</span>
+      <div class="msg-time">${m.who}</div>
+    </div>`;
+  }).join('');
+}
+
+function escHTML(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── SHAKE ── */
+function shake(id) {
+  const el = document.getElementById(id);
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'shk 0.4s ease';
+  setTimeout(()=>el.style.animation='',400);
+}
+function shakeel(id) { shake(id); }
+
+const style = document.createElement('style');
+style.textContent = '@keyframes shk{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}';
+document.head.appendChild(style);
+
+// Init inbox
+renderInbox();
+</script>
+</body>
+</html>
